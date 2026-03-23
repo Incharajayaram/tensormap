@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import tensorflow as tf
 
+from app.services.layer_registry import build_layer
 from app.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -35,8 +36,11 @@ def model_generation(model_params: dict) -> dict:
 
     for node in model_params["nodes"]:
         if node["type"] == "custominput":
-            dims = [int(node["data"]["params"].get(f"dim-{i + 1}", 0) or 0) for i in range(3)]
+            raw_params = node["data"]["params"]
+            dims = [int(raw_params.get(f"dim-{i + 1}", 0) or 0) for i in range(3)]
             dims = [d for d in dims if d != 0]
+            if not dims or dims[0] <= 0:
+                raise ValueError("Input layer requires at least one positive dimension")
             keras_tensors[node["id"]] = tf.keras.Input(shape=dims, name=node["id"])
             visited.add(node["id"])
             queue.append(node["id"])
@@ -78,28 +82,4 @@ def _build_layer(node: dict, input_tensor):
     params = node["data"]["params"]
     node_type = node["type"]
     name = node["id"]
-
-    if node_type == "customdense":
-        activation = params["activation"]
-        return tf.keras.layers.Dense(
-            units=int(params["units"]),
-            activation="linear" if activation == "none" else activation,
-            name=name,
-        )(input_tensor)
-
-    elif node_type == "customflatten":
-        return tf.keras.layers.Flatten(name=name)(input_tensor)
-
-    elif node_type == "customconv":
-        activation = params["activation"]
-        return tf.keras.layers.Conv2D(
-            filters=int(params["filter"]),
-            kernel_size=(int(params["kernelX"]), int(params["kernelY"])),
-            strides=(int(params["strideX"]), int(params["strideY"])),
-            padding=params["padding"],
-            activation="linear" if activation == "none" else activation,
-            name=name,
-        )(input_tensor)
-
-    else:
-        raise ValueError(f"Unknown node type: {node_type}")
+    return build_layer(node_type, params, input_tensor, name)

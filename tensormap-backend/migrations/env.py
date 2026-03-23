@@ -6,7 +6,16 @@ from sqlmodel import SQLModel
 
 from app.config import get_settings
 from app.models.data import DataFile, DataProcess, ImageProperties  # noqa: F401
-from app.models.ml import ModelBasic, ModelConfigs  # noqa: F401
+from app.models.ml import (
+    ModelBasic,
+    ModelConfigs,
+    RunHistory,
+    RunMetric,
+    ExportJob,
+    InterpretabilityReport,
+    TuningJob,
+    TuningTrial,
+)  # noqa: F401
 from app.models.project import Project  # noqa: F401
 
 config = context.config

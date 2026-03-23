@@ -66,6 +66,119 @@ class ModelConfigs(SQLModel, table=True):
     model: ModelBasic | None = Relationship(back_populates="configs")
 
 
+# --- Run history + metrics ---
+class RunHistory(SQLModel, table=True):
+    """Persisted training run metadata."""
+
+    __tablename__ = "run_history"
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(max_length=64, nullable=False, unique=True, index=True)
+    model_id: int | None = Field(default=None, foreign_key="model_basic.id", index=True)
+    model_name: str = Field(max_length=50, nullable=False)
+    status: str = Field(default="queued", max_length=20)
+    started_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    updated_on: datetime | None = Field(
+        default=None, sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now())
+    )
+    summary: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    error_text: str | None = Field(default=None, max_length=500)
+
+    model: ModelBasic | None = Relationship()
+
+
+class RunMetric(SQLModel, table=True):
+    """Persisted per-epoch metrics for a training run."""
+
+    __tablename__ = "run_metric"
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(max_length=64, nullable=False, index=True)
+    phase: str = Field(max_length=10, nullable=False)  # train / val / eval
+    epoch: int | None = Field(default=None, nullable=True)
+    step: int | None = Field(default=None, nullable=True)
+    loss: float | None = Field(default=None, nullable=True)
+    metric: float | None = Field(default=None, nullable=True)
+    metrics: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    timestamp: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+
+
+# --- Export jobs ---
+class ExportJob(SQLModel, table=True):
+    """Persisted export jobs for model artifacts."""
+
+    __tablename__ = "export_job"
+
+    id: int | None = Field(default=None, primary_key=True)
+    export_id: str = Field(max_length=64, nullable=False, unique=True, index=True)
+    run_id: str | None = Field(default=None, max_length=64, nullable=True)
+    model_id: int | None = Field(default=None, foreign_key="model_basic.id", index=True)
+    model_name: str = Field(max_length=50, nullable=False)
+    format: str = Field(max_length=20, nullable=False)
+    status: str = Field(default="queued", max_length=20)
+    path: str | None = Field(default=None, max_length=500)
+    error_text: str | None = Field(default=None, max_length=500)
+    created_on: datetime | None = Field(default=None, sa_column=Column(DateTime, server_default=func.now()))
+    updated_on: datetime | None = Field(
+        default=None, sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now())
+    )
+
+
+class InterpretabilityReport(SQLModel, table=True):
+    """Persisted interpretability reports."""
+
+    __tablename__ = "interpretability_report"
+
+    id: int | None = Field(default=None, primary_key=True)
+    report_id: str = Field(max_length=64, nullable=False, unique=True, index=True)
+    run_id: str | None = Field(default=None, max_length=64, nullable=True)
+    model_id: int | None = Field(default=None, foreign_key="model_basic.id", index=True)
+    model_name: str = Field(max_length=50, nullable=False)
+    problem_type: str = Field(max_length=30, nullable=False)
+    status: str = Field(default="running", max_length=20)
+    summary: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    artifacts: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    error_text: str | None = Field(default=None, max_length=500)
+    created_on: datetime | None = Field(default=None, sa_column=Column(DateTime, server_default=func.now()))
+    updated_on: datetime | None = Field(
+        default=None, sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now())
+    )
+
+
+class TuningJob(SQLModel, table=True):
+    """Persisted hyperparameter tuning jobs."""
+
+    __tablename__ = "tuning_job"
+
+    id: int | None = Field(default=None, primary_key=True)
+    job_id: str = Field(max_length=64, nullable=False, unique=True, index=True)
+    model_id: int | None = Field(default=None, foreign_key="model_basic.id", index=True)
+    model_name: str = Field(max_length=50, nullable=False)
+    strategy: str = Field(max_length=20, nullable=False)
+    objective: str = Field(max_length=50, nullable=False)
+    max_trials: int = Field(default=10, nullable=False)
+    status: str = Field(default="running", max_length=20)
+    created_on: datetime | None = Field(default=None, sa_column=Column(DateTime, server_default=func.now()))
+    updated_on: datetime | None = Field(
+        default=None, sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now())
+    )
+
+
+class TuningTrial(SQLModel, table=True):
+    """Persisted tuning trial results."""
+
+    __tablename__ = "tuning_trial"
+
+    id: int | None = Field(default=None, primary_key=True)
+    job_id: str = Field(max_length=64, nullable=False, index=True)
+    trial_id: str = Field(max_length=64, nullable=False, unique=True, index=True)
+    status: str = Field(default="completed", max_length=20)
+    params: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    score: float | None = Field(default=None, nullable=True)
+    run_id: str | None = Field(default=None, max_length=64, nullable=True)
+    error_text: str | None = Field(default=None, max_length=500)
+    created_on: datetime | None = Field(default=None, sa_column=Column(DateTime, server_default=func.now()))
 # Resolve forward references
 from app.models.data import DataFile  # noqa: E402
 

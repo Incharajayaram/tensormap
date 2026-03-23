@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 import app.shared.errors as errors
-from app.models import ModelBasic, ModelConfigs
+from app.models import ModelBasic, ModelConfigs, RunHistory, RunMetric
 from app.services.code_generation import generate_code
 from app.services.model_generation import model_generation
 from app.services.model_run import model_run
@@ -112,7 +112,11 @@ def _build_model_summary(keras_model) -> dict:
 
 def model_validate_service(db: Session, incoming: dict, project_id: uuid_pkg.UUID | None = None) -> tuple:
     """Validate a model graph with Keras, persist the configuration, and save the JSON file."""
-    model_generated = model_generation(model_params=incoming["model"])
+    try:
+        model_generated = model_generation(model_params=incoming["model"])
+    except ValueError as e:
+        logger.error("Model generation error: %s", str(e))
+        return _resp(400, False, str(e))
 
     try:
         keras_model = tf.keras.models.model_from_json(json.dumps(model_generated))
@@ -194,7 +198,11 @@ def model_validate_service(db: Session, incoming: dict, project_id: uuid_pkg.UUI
 
 def model_save_service(db: Session, incoming: dict, model_name: str, project_id: uuid_pkg.UUID | None = None) -> tuple:
     """Validate a model graph with Keras and save architecture only (no training config)."""
-    model_generated = model_generation(model_params=incoming)
+    try:
+        model_generated = model_generation(model_params=incoming)
+    except ValueError as e:
+        logger.error("Model generation error: %s", str(e))
+        return _resp(400, False, str(e))
 
     try:
         keras_model = tf.keras.models.model_from_json(json.dumps(model_generated))
@@ -330,9 +338,10 @@ def run_code_service(db: Session, model_name: str, project_id: uuid_pkg.UUID | N
     if model.file_id is None or model.epochs is None:
         return _resp(400, False, "Training configuration not set. Please configure training parameters first.")
     try:
-        model_run(model_name, db, loop=loop)
+        run_id = f"run_{uuid_pkg.uuid4().hex[:10]}"
+        model_run(model_name, db, loop=loop, run_id=run_id)
         logger.info("Model '%s' training completed", model_name)
-        return _resp(200, True, "Model executed successfully.")
+        return _resp(200, True, "Model executed successfully.", {"run_id": run_id})
     except Exception as e:
         logger.exception("Model run failed: %s", str(e))
         for error in errors.err_msgs:
@@ -486,3 +495,56 @@ def delete_model_service(db: Session, model_id: int) -> tuple:
 
     logger.info("Model '%s' (id=%s) deleted successfully", model_name, model_id)
     return _resp(200, True, f"Model '{model_name}' deleted successfully")
+
+
+def get_run_history_service(
+    db: Session,
+    model_name: str | None = None,
+    project_id: uuid_pkg.UUID | None = None,
+    limit: int = 50,
+) -> tuple:
+    stmt = select(RunHistory)
+    if model_name:
+        stmt = stmt.where(RunHistory.model_name == model_name)
+    if project_id is not None:
+        model_ids = db.exec(select(ModelBasic.id).where(ModelBasic.project_id == project_id)).all()
+        if model_ids:
+            stmt = stmt.where(RunHistory.model_id.in_(model_ids))
+        else:
+            return _resp(200, True, "Run history retrieved", [])
+    stmt = stmt.order_by(RunHistory.updated_on.desc()).limit(limit)
+    runs = db.exec(stmt).all()
+    data = [
+        {
+            "run_id": run.run_id,
+            "model_name": run.model_name,
+            "status": run.status,
+            "started_at": run.started_at.timestamp() if run.started_at else None,
+            "completed_at": run.completed_at.timestamp() if run.completed_at else None,
+            "updated_at": run.updated_on.timestamp() if run.updated_on else None,
+            "summary": run.summary,
+            "error_text": run.error_text,
+        }
+        for run in runs
+    ]
+    return _resp(200, True, "Run history retrieved", data)
+
+
+def get_run_metrics_service(db: Session, run_id: str) -> tuple:
+    run = db.exec(select(RunHistory).where(RunHistory.run_id == run_id)).first()
+    if not run:
+        return _resp(404, False, "Run not found")
+    metrics = db.exec(select(RunMetric).where(RunMetric.run_id == run_id).order_by(RunMetric.epoch)).all()
+    data = [
+        {
+            "phase": m.phase,
+            "epoch": m.epoch,
+            "step": m.step,
+            "loss": m.loss,
+            "metric": m.metric,
+            "metrics": m.metrics,
+            "timestamp": m.timestamp.timestamp() if m.timestamp else None,
+        }
+        for m in metrics
+    ]
+    return _resp(200, True, "Run metrics retrieved", {"run_id": run_id, "metrics": data})
