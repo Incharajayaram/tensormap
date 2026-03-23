@@ -1,3 +1,4 @@
+import { getLayerByType, validateLayerParams } from "../../registry/layers";
 /**
  * Determines whether the model can be saved.
  * Returns true when model name is filled, nodes present, all params valid, and graph connected.
@@ -7,26 +8,10 @@ export const canSaveModel = (modelName, modelData) => {
   if (!modelData.nodes || modelData.nodes.length === 0) return false;
 
   for (const node of modelData.nodes) {
-    if (node.type === "customdense") {
-      if (
-        !node.data.params.units ||
-        node.data.params.units === "" ||
-        !node.data.params.activation ||
-        node.data.params.activation === ""
-      ) {
-        return false;
-      }
-    } else if (node.type === "custominput") {
-      if (!node.data.params["dim-1"] || node.data.params["dim-1"] === "") {
-        return false;
-      }
-    } else if (node.type === "customconv") {
-      const p = node.data.params;
-      if (!p.filter || !p.kernelX || !p.kernelY || !p.strideX || !p.strideY) {
-        return false;
-      }
-    }
-    // customflatten has no params to validate
+    const layer = getLayerByType(node.type);
+    if (!layer) continue;
+    const errors = validateLayerParams(layer, node.data?.params || {});
+    if (Object.keys(errors).length > 0) return false;
   }
 
   return isGraphConnected(modelData);

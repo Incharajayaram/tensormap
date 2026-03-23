@@ -170,3 +170,123 @@ export const runModel = async (modelName, projectId) => {
       throw err;
     });
 };
+
+export const getRunHistory = async (projectId, modelName) => {
+  const params = {};
+  if (projectId) params.project_id = projectId;
+  if (modelName) params.model_name = modelName;
+  return axios
+    .get("/model/runs", { params })
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });
+};
+
+export const getRunMetrics = async (runId) =>
+  axios
+    .get(`/model/runs/${encodeURIComponent(runId)}/metrics`)
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });
+
+export const startExport = async (model_name, format, run_id) =>
+  axios
+    .post("/model/export/start", { model_name, format, run_id })
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });
+
+export const getExportStatus = async (exportId) =>
+  axios
+    .get(`/model/export/${encodeURIComponent(exportId)}/status`)
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });
+
+export const downloadExport = async (exportId, filename) =>
+  axios
+    .get(`/model/export/${encodeURIComponent(exportId)}/download`, {
+      responseType: "blob",
+    })
+    .then((resp) => {
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(resp.data);
+      link.download = filename || `export_${exportId}`;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(link.href);
+        document.body.removeChild(link);
+      }, 200);
+    });
+
+export const generateInterpretability = async (model_name, run_id) =>
+  axios
+    .post("/model/interpretability/generate", { model_name, run_id })
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });
+
+export const getInterpretabilityReport = async (reportId) =>
+  axios
+    .get(`/model/interpretability/${encodeURIComponent(reportId)}`)
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });
+
+export const getInterpretabilityStatus = async (reportId) =>
+  axios
+    .get(`/model/interpretability/${encodeURIComponent(reportId)}/status`)
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });
+
+export const startTuning = async (payload) =>
+  axios
+    .post("/model/tuning/start", payload)
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });
+
+export const getTuningStatus = async (jobId) =>
+  axios
+    .get(`/model/tuning/${encodeURIComponent(jobId)}/status`)
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });
+
+export const getTuningResults = async (jobId) =>
+  axios
+    .get(`/model/tuning/${encodeURIComponent(jobId)}/results`)
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });
+
+export const applyBestTuning = async (jobId) =>
+  axios
+    .post(`/model/tuning/${encodeURIComponent(jobId)}/apply-best`)
+    .then((resp) => resp.data)
+    .catch((err) => {
+      logger.error(err);
+      throw err;
+    });

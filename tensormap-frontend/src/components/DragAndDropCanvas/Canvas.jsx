@@ -29,7 +29,7 @@ import InputNode from "./CustomNodes/InputNode/InputNode";
 import DenseNode from "./CustomNodes/DenseNode/DenseNode";
 import FlattenNode from "./CustomNodes/FlattenNode/FlattenNode";
 import ConvNode from "./CustomNodes/ConvNode/ConvNode";
-import DropoutNode from "./CustomNodes/DropoutNode/DropoutNode";
+import GenericNode from "./CustomNodes/GenericNode/GenericNode";
 import Sidebar from "./Sidebar";
 import NodePropertiesPanel from "./NodePropertiesPanel";
 import { canSaveModel, generateModelJSON } from "./Helpers";
@@ -37,6 +37,7 @@ import ModelSummaryPanel from "./ModelSummaryPanel";
 import { getAllModels, getModelGraph, saveModel } from "../../services/ModelServices";
 import { models as allModels } from "../../shared/atoms";
 import ContextMenu from "./ContextMenu";
+import { getLayerByType, getLayerDefaults, LAYER_REGISTRY } from "../../registry/layers";
 import useUndoRedo from "../../hooks/useUndoRedo";
 
 const isMac =
@@ -46,13 +47,19 @@ const isMac =
       : /Mac/i.test(navigator.platform)
     : false;
 
-const nodeTypes = {
+const baseNodeTypes = {
   custominput: InputNode,
   customdense: DenseNode,
   customflatten: FlattenNode,
   customconv: ConvNode,
-  customdropout: DropoutNode,
 };
+
+const nodeTypes = LAYER_REGISTRY.reduce((acc, layer) => {
+  if (!acc[layer.type]) {
+    acc[layer.type] = GenericNode;
+  }
+  return acc;
+}, { ...baseNodeTypes });
 
 function Canvas() {
   const { projectId } = useParams();
@@ -212,7 +219,7 @@ function Canvas() {
           id: node.id,
           type: node.type,
           position: node.position || { x: 100, y: i * 200 },
-          data: { label: `${node.type} node`, params: node.data?.params || {} },
+          data: { type: node.type, label: `${node.type} node`, params: node.data?.params || {} },
         }));
 
         const loadedEdges = (graph.edges || []).map((edge) => ({
@@ -402,7 +409,11 @@ function Canvas() {
         id: crypto.randomUUID(),
         type: source.type,
         position: { x: source.position.x + 50, y: source.position.y + 50 },
-        data: { label: source.data.label, params: { ...source.data.params } },
+        data: {
+          type: source.type,
+          label: source.data.label,
+          params: { ...source.data.params },
+        },
       };
       return nds.concat(duplicate);
     });
@@ -508,27 +519,14 @@ function Canvas() {
         y: event.clientY - reactFlowBounds.top,
       });
 
-      const defaultParams = {
-        custominput: { "dim-1": "", "dim-2": "", "dim-3": "" },
-        customdense: { units: "", activation: "" },
-        customflatten: {},
-        customconv: {
-          filter: "",
-          padding: "valid",
-          activation: "none",
-          strideX: "",
-          strideY: "",
-          kernelX: "",
-          kernelY: "",
-        },
-        customdropout: { rate: "" },
-      };
+      const layer = getLayerByType(type);
+      const defaultParams = layer ? getLayerDefaults(layer) : {};
 
       const newNode = {
         id: crypto.randomUUID(),
         type,
         position,
-        data: { label: `${type} node`, params: defaultParams[type] || {} },
+        data: { type, label: `${type} node`, params: defaultParams },
       };
 
       takeSnapshotAndUpdate(nodesRef.current, edgesRef.current);

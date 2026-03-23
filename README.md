@@ -9,6 +9,11 @@ A web application for visually creating machine learning algorithms via drag-and
 - Drag-and-drop neural network design using ReactFlow
 - Reverse engineer visual models to TensorFlow Python code
 - Real-time model training with live progress via WebSocket
+- Registry-driven layer system (15 layers, schema-based params)
+- Structured training telemetry with run history + comparisons
+- Model export (SavedModel, ONNX, TFLite)
+- Post-training interpretability (confusion matrix, reports, residuals)
+- Hyperparameter tuning (grid + random search)
 - CSV and image dataset upload and preprocessing
 - Correlation matrix visualization and target field selection
 
@@ -74,7 +79,16 @@ cd tensormap-frontend && npm test
 tensormap/
   tensormap-backend/    # Python FastAPI server
   tensormap-frontend/   # React + Vite SPA
+  docs/                 # Contributor docs
 ```
+
+## Docs
+
+- `docs/layer-registry.md`
+- `docs/telemetry.md`
+- `docs/export.md`
+- `docs/interpretability.md`
+- `docs/tuning.md`
 
 ## Contributing
 

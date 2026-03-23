@@ -10,21 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const ACTIVATIONS = [
-  { value: "none", label: "None" },
-  { value: "relu", label: "ReLU" },
-  { value: "sigmoid", label: "Sigmoid" },
-  { value: "tanh", label: "Tanh" },
-  { value: "softmax", label: "Softmax" },
-  { value: "elu", label: "ELU" },
-  { value: "selu", label: "SELU" },
-];
-
-const convPaddings = [
-  { value: "valid", label: "Valid" },
-  { value: "same", label: "Same" },
-];
+import { getLayerByType, validateLayerParams } from "../../registry/layers";
 
 function NodePropertiesPanel({
   selectedNode,
@@ -59,218 +45,109 @@ function NodePropertiesPanel({
 
   const { type, data, id } = selectedNode;
   const params = data.params;
+  const layer = getLayerByType(type);
+  const paramEntries = Object.entries(layer?.params || {});
+  const errors = validateLayerParams(layer, params);
 
   const updateParam = (name, value) => {
     onNodeUpdate(id, { ...params, [name]: value });
   };
 
-  if (type === "custominput") {
+  if (!layer) {
     return (
       <Card className="h-fit">
         <CardHeader>
-          <CardTitle className="text-sm">Input Layer</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <Label>Dim 1</Label>
-            <Input
-              type="number"
-              min="0"
-              placeholder="Dimension 1"
-              value={params["dim-1"]}
-              onChange={(e) => updateParam("dim-1", Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Dim 2</Label>
-            <Input
-              type="number"
-              min="0"
-              placeholder="Dimension 2 (optional)"
-              value={params["dim-2"]}
-              onChange={(e) => updateParam("dim-2", Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Dim 3</Label>
-            <Input
-              type="number"
-              min="0"
-              placeholder="Dimension 3 (optional)"
-              value={params["dim-3"]}
-              onChange={(e) => updateParam("dim-3", Number(e.target.value))}
-            />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (type === "customdense") {
-    return (
-      <Card className="h-fit">
-        <CardHeader>
-          <CardTitle className="text-sm">Dense Layer</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <Label>Units</Label>
-            <Input
-              type="number"
-              min="1"
-              placeholder="Number of units"
-              value={params.units}
-              onChange={(e) => updateParam("units", Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Activation</Label>
-            <Select value={params.activation} onValueChange={(v) => updateParam("activation", v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select activation" />
-              </SelectTrigger>
-              <SelectContent>
-                {ACTIVATIONS.map((a) => (
-                  <SelectItem key={a.value} value={a.value}>
-                    {a.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (type === "customflatten") {
-    return (
-      <Card className="h-fit">
-        <CardHeader>
-          <CardTitle className="text-sm">Flatten Layer</CardTitle>
+          <CardTitle className="text-sm">Layer Settings</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="text-sm text-muted-foreground">Unknown layer type</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="h-fit">
+      <CardHeader>
+        <CardTitle className="text-sm">{layer.label} Layer</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {paramEntries.length === 0 ? (
           <p className="text-sm text-muted-foreground">No configurable parameters</p>
-        </CardContent>
-      </Card>
-    );
-  }
+        ) : (
+          paramEntries.map(([key, config]) => {
+            const value = params[key];
+            const error = errors[key];
+            const isNumber = config.type === "number";
+            const label = `${config.label}${config.required ? " *" : ""}`;
 
-  if (type === "customconv") {
-    return (
-      <Card className="h-fit">
-        <CardHeader>
-          <CardTitle className="text-sm">Conv2D Layer</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <Label>Filters</Label>
-            <Input
-              type="number"
-              min="1"
-              placeholder="Filter count"
-              value={params.filter}
-              onChange={(e) => updateParam("filter", Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Kernel X</Label>
-            <Input
-              type="number"
-              min="1"
-              placeholder="Kernel X"
-              value={params.kernelX}
-              onChange={(e) => updateParam("kernelX", Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Kernel Y</Label>
-            <Input
-              type="number"
-              min="1"
-              placeholder="Kernel Y"
-              value={params.kernelY}
-              onChange={(e) => updateParam("kernelY", Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Stride X</Label>
-            <Input
-              type="number"
-              min="1"
-              placeholder="Stride X"
-              value={params.strideX}
-              onChange={(e) => updateParam("strideX", Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Stride Y</Label>
-            <Input
-              type="number"
-              min="1"
-              placeholder="Stride Y"
-              value={params.strideY}
-              onChange={(e) => updateParam("strideY", Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Padding</Label>
-            <Select value={params.padding} onValueChange={(v) => updateParam("padding", v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Padding" />
-              </SelectTrigger>
-              <SelectContent>
-                {convPaddings.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Activation</Label>
-            <Select value={params.activation} onValueChange={(v) => updateParam("activation", v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Activation" />
-              </SelectTrigger>
-              <SelectContent>
-                {ACTIVATIONS.map((a) => (
-                  <SelectItem key={a.value} value={a.value}>
-                    {a.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+            if (config.type === "select") {
+              return (
+                <div key={key} className="space-y-1">
+                  <Label>{label}</Label>
+                  <Select value={value} onValueChange={(v) => updateParam(key, v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={`Select ${config.label.toLowerCase()}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(config.options || []).map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {error ? <p className="text-xs text-destructive">{error}</p> : null}
+                </div>
+              );
+            }
 
-  if (type === "customdropout") {
-    return (
-      <Card className="h-fit">
-        <CardHeader>
-          <CardTitle className="text-sm">Dropout</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <Label>Rate (0–1)</Label>
-            <Input
-              type="number"
-              min="0"
-              max="1"
-              step="0.1"
-              value={params.rate}
-              onChange={(e) => updateParam("rate", e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-  return null;
+            if (config.type === "boolean") {
+              const boolValue = value === true ? "true" : "false";
+              return (
+                <div key={key} className="space-y-1">
+                  <Label>{label}</Label>
+                  <Select
+                    value={boolValue}
+                    onValueChange={(v) => updateParam(key, v === "true")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={`Select ${config.label.toLowerCase()}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">True</SelectItem>
+                      <SelectItem value="false">False</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {error ? <p className="text-xs text-destructive">{error}</p> : null}
+                </div>
+              );
+            }
+
+            return (
+              <div key={key} className="space-y-1">
+                <Label>{label}</Label>
+                <Input
+                  type={isNumber ? "number" : "text"}
+                  min={isNumber && config.min !== undefined ? config.min : undefined}
+                  max={isNumber && config.max !== undefined ? config.max : undefined}
+                  step={isNumber && config.step !== undefined ? config.step : undefined}
+                  placeholder={config.placeholder || ""}
+                  value={value}
+                  onChange={(e) => {
+                    const nextValue =
+                      isNumber && e.target.value !== "" ? Number(e.target.value) : e.target.value;
+                    updateParam(key, nextValue);
+                  }}
+                />
+                {error ? <p className="text-xs text-destructive">{error}</p> : null}
+              </div>
+            );
+          })
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 NodePropertiesPanel.propTypes = {
