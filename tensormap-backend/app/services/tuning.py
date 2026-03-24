@@ -38,10 +38,15 @@ def _emit_tuning(event_type: str, payload: dict):
 def _load_tabular_data(db: Session, model: ModelBasic):
     file_path = _helper_generate_file_location(db, model.file_id)
     df = pd.read_csv(file_path)
+    df = df.apply(pd.to_numeric, errors="coerce")
     df.dropna(inplace=True)
     df = df.sample(frac=1, random_state=42).reset_index(drop=True)
     X = df.drop(model.target_field, axis=1)
     y = df[model.target_field]
+    if model.model_type == ProblemType.REGRESSION:
+        y = y.astype(float)
+    else:
+        y = y.astype(int)
     split_index = int(len(X) * model.training_split / 100)
     x_train = X[:split_index]
     y_train = y[:split_index]

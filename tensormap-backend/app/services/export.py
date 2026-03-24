@@ -75,7 +75,8 @@ def start_export(db: Session, model_name: str, fmt: str, run_id: str | None = No
 
         if fmt == "savedmodel":
             out_path = os.path.join(export_dir, "savedmodel")
-            keras_model.save(out_path)
+            # Newer Keras requires model.export for SavedModel directories.
+            keras_model.export(out_path)
             _update_job(db, job, status="completed", path=out_path)
         elif fmt == "tflite":
             converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)

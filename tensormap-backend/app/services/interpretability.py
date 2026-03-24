@@ -34,6 +34,7 @@ def _get_file_location(db: Session, model: ModelBasic) -> str:
 def _prepare_tabular(db: Session, model: ModelBasic):
     file_path = _get_file_location(db, model)
     df = pd.read_csv(file_path)
+    df = df.apply(pd.to_numeric, errors="coerce")
     df.dropna(inplace=True)
     df = df.sample(frac=1, random_state=42).reset_index(drop=True)
     X = df.drop(model.target_field, axis=1)
@@ -102,7 +103,7 @@ def generate_report(db: Session, model_name: str, run_id: str | None = None) -> 
         if problem_type == "regression":
             x_test, y_test = _prepare_tabular(db, model)
             preds = keras_model.predict(x_test, verbose=0).flatten()
-            y_true = y_test.to_numpy()
+            y_true = y_test.to_numpy().astype(float)
             mae = float(mean_absolute_error(y_true, preds))
             mse = float(mean_squared_error(y_true, preds))
             rmse = float(np.sqrt(mse))

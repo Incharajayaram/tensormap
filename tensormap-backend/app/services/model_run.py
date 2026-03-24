@@ -336,12 +336,18 @@ def _run(model_name: str, db: Session, run_id: str) -> None:
     else:
         file_location = _helper_generate_file_location(db, file_id=model_configs.file_id)
         features = pd.read_csv(file_location)
+        # Ensure all columns are numeric; non-numeric values become NaN and are dropped.
+        features = features.apply(pd.to_numeric, errors="coerce")
         features.dropna(inplace=True)
         # Shuffle data to prevent issues with ordered datasets
         features = features.sample(frac=1, random_state=42).reset_index(drop=True)
 
         X = features.drop(model_configs.target_field, axis=1)
         y = features[model_configs.target_field]
+        if model_configs.model_type == ProblemType.REGRESSION:
+            y = y.astype(float)
+        else:
+            y = y.astype(int)
 
         split_index = int(len(X) * model_configs.training_split / 100)
         x_training = X[:split_index]
